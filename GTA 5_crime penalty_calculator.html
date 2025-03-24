@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ゲーム内犯罪罰金計算ツール</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .crime-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .crime-item {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    .crime-item label {
+      display: flex;
+      align-items: flex-start;
+      cursor: pointer;
+    }
+    .crime-item input {
+      margin-right: 10px;
+      margin-top: 5px;
+    }
+    .crime-details {
+      flex-grow: 1;
+    }
+    .crime-name {
+      font-weight: bold;
+      color: #d32f2f;
+      margin-bottom: 5px;
+      display: block;
+    }
+    .crime-info {
+      font-size: 14px;
+      color: #666;
+    }
+    .results {
+      background-color: #e0f7fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .results h3 {
+      margin-top: 0;
+      color: #0277bd;
+    }
+    .result-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #d32f2f;
+      margin: 10px 0;
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #9e9e9e;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #757575;
+    }
+    .selected-crimes {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      display: none;
+    }
+    .selected-crimes h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    .selected-crime-list {
+      list-style-type: none;
+      padding: 0;
+    }
+    .selected-crime-list li {
+      padding: 5px 0;
+      border-bottom: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ゲーム内犯罪罰金計算ツール</h1>
+    
+    <div class="crime-list" id="crimeList"></div>
+    
+    <div class="buttons">
+      <button id="clearBtn">クリア</button>
+    </div>
+    
+    <div class="results" id="results">
+      <h3>計算結果</h3>
+      <div>
+        <div>合計罰金:</div>
+        <div class="result-value" id="totalFine">0円</div>
+      </div>
+      <div>
+        <div>最大刑期:</div>
+        <div class="result-value" id="maxSentence">0分</div>
+      </div>
+    </div>
+    
+    <div class="selected-crimes" id="selectedCrimes">
+      <h3>選択した犯罪:</h3>
+      <ul class="selected-crime-list" id="selectedCrimeList"></ul>
+    </div>
+  </div>
+
+  <script>
+    // 犯罪データ
+    const crimes = [
+      {
+        name: "小型犯罪",
+        fine: 500000,
+        sentence: 10,
+        target: "小型犯罪を行った者"
+      },
+      {
+        name: "中型犯罪",
+        fine: 1500000,
+        sentence: 20,
+        target: "中型犯罪を行った者"
+      },
+      {
+        name: "準大型強盗",
+        fine: 7000000,
+        sentence: 25,
+        target: "準大型犯罪を行った者"
+      },
+      {
+        name: "大型強盗",
+        fine: 10000000,
+        sentence: 30,
+        target: "大型犯罪を行った者"
+      },
+      {
+        name: "逃走補助",
+        fine: 5000000,
+        sentence: 30,
+        target: "個人医として犯罪者の逃走補助を行った者"
+      },
+      {
+        name: "威力業務妨害",
+        fine: 10000000,
+        sentence: 30,
+        target: "市民が経営する店舗の不利益になる行為をした者"
+      },
+      {
+        name: "イベントテロ罪",
+        fine: 10000000,
+        sentence: 300,
+        target: "イベントを妨害・襲撃した者"
+      },
+      {
+        name: "プレイヤー殺人",
+        fine: 1500000,
+        sentence: 10,
+        target: "プレイヤーを殺害した者"
+      },
+      {
+        name: "NPC殺人",
+        fine: 1000000,
+        sentence: 0,
+        target: "NPCを殺害した者"
+      },
+      {
+        name: "道路交通法違反",
+        fine: 500000,
+        sentence: 0,
+        target: "逆走・危険運転・市内120キロ高速170キロで運転を行った運転者",
+        note: "車両は、インバウンド処理され、1時間待つ必要がある"
+      },
+      {
+        name: "銃刀法違反",
+        fine: 1000000,
+        sentence: 0,
+        target: "銃及び刃物を所持していた場合"
+      },
+      {
+        name: "無免許運転",
+        fine: 500000,
+        sentence: 0,
+        target: "運転免許未携帯で運転していた場合"
+      },
+      {
+        name: "公務執行妨害",
+        fine: 500000,
+        sentence: 0,
+        target: "警察・救急隊の公務を妨害した者"
+      },
+      {
+        name: "誘拐/監禁/人質",
+        fine: 1000000,
+        sentence: 0,
+        target: "プレイヤーを誘拐・監禁・人質にした者"
+      },
+      {
+        name: "麻薬所持",
+        fine: 0,
+        sentence: 0,
+        target: "麻薬・原材料の所持数×1万円",
+        specialCalc: true
+      },
+      {
+        name: "収賄罪",
+        fine: 1000000000,
+        sentence: 90,
+        target: "公務員が汚職を行った場合"
+      },
+      {
+        name: "違法駐車",
+        fine: 100000,
+        sentence: 0,
+        target: "駐車場以外や通行の妨げとなる場所に車を駐車した者",
+        note: "車両がインバウンド処理され、1時間待つ必要がある"
+      },
+      {
+        name: "プレイヤー車両窃盗",
+        fine: 3000000,
+        sentence: 0,
+        target: "プレイヤーの車両を窃盗した者"
+      },
+      {
+        name: "NPC車両窃盗",
+        fine: 500000,
+        sentence: 0,
+        target: "NPCの車両を窃盗した者"
+      },
+      {
+        name: "ライセンス未所持",
+        fine: 1000000,
+        sentence: 0,
+        target: "必要なライセンスを所持していない者"
+      },
+      {
+        name: "わいせつ罪",
+        fine: 10000000,
+        sentence: 30,
+        target: "わいせつ行為を行った者"
+      },
+      {
+        name: "暴行罪",
+        fine: 500000,
+        sentence: 0,
+        target: "他のプレイヤーに暴行を加えた者"
+      },
+      {
+        name: "脅迫/侮辱",
+        fine: 3000000,
+        sentence: 20,
+        target: "精神的暴行を行った者"
+      },
+      {
+        name: "器物破損/事故破損",
+        fine: 3000000,
+        sentence: 0,
+        target: "他のプレイヤーの所有物を無断で破壊・傷つけた者"
+      },
+      {
+        name: "テロ罪",
+        fine: 300000000,
+        sentence: 30,
+        target: "警察署・病院を襲撃した者"
+      },
+      {
+        name: "詐欺罪",
+        fine: 5000000,
+        sentence: 15,
+        target: "不正な商品販売や押し売りを行った者"
+      },
+      {
+        name: "脱獄",
+        fine: 100000000,
+        sentence: 60,
+        target: "刑務所から逃亡した者、およびその補助者"
+      }
+    ];
+
+    // 犯罪リストを表示
+    function displayCrimes() {
+      const crimeListElement = document.getElementById('crimeList');
+      
+      crimes.forEach((crime, index) => {
+        const crimeItem = document.createElement('div');
+        crimeItem.className = 'crime-item';
+        
+        let sentenceText = crime.sentence > 0 ? `刑期: ${crime.sentence}分` : '';
+        let noteText = crime.note ? `<br>${crime.note}` : '';
+        let fineText = '';
+        
+        if (crime.name === "麻薬所持") {
+          fineText = "罰金: 所持数×1万円";
+        } else {
+          fineText = `罰金: ${formatCurrency(crime.fine)}`;
+        }
+        
+        crimeItem.innerHTML = `
+          <label>
+            <input type="checkbox" class="crime-checkbox" id="crime-${index}" data-index="${index}">
+            <div class="crime-details">
+              <span class="crime-name">${crime.name}</span>
+              <div class="crime-info">
+                ${fineText}<br>
+                ${sentenceText}
+                <br>対象: ${crime.target}
+                ${noteText}
+              </div>
+            </div>
+          </label>
+        `;
+        
+        if (crime.name === "麻薬所持") {
+          const drugInput = document.createElement('div');
+          drugInput.style.marginTop = '10px';
+          drugInput.innerHTML = `
+            <label>
+              所持数量: 
+              <input type="number" id="drug-amount" min="0" value="0" style="width: 60px">
+            </label>
+          `;
+          crimeItem.appendChild(drugInput);
+          
+          // 麻薬所持数の変更で即時計算を実行
+          setTimeout(() => {
+            const drugAmountInput = document.getElementById('drug-amount');
+            if (drugAmountInput) {
+              drugAmountInput.addEventListener('input', calculate);
+            }
+          }, 0);
+        }
+        
+        crimeListElement.appendChild(crimeItem);
+      });
+    }
+
+    // 計算処理
+    function calculate() {
+      const checkboxes = document.querySelectorAll('.crime-checkbox:checked');
+      let totalFine = 0;
+      let maxSentence = 0;
+      const selectedCrimesList = [];
+      
+      checkboxes.forEach(checkbox => {
+        const index = parseInt(checkbox.dataset.index);
+        const crime = crimes[index];
+        
+        let fine = crime.fine;
+        
+        // 麻薬所持の特殊計算
+        if (crime.name === "麻薬所持") {
+          const amount = parseInt(document.getElementById('drug-amount').value) || 0;
+          fine = amount * 10000;
+        }
+        
+        totalFine += fine;
+        maxSentence = Math.max(maxSentence, crime.sentence);
+        
+        selectedCrimesList.push({
+          name: crime.name,
+          fine: fine,
+          sentence: crime.sentence
+        });
+      });
+      
+      // 結果を表示
+      document.getElementById('totalFine').textContent = formatCurrency(totalFine);
+      document.getElementById('maxSentence').textContent = `${maxSentence}分`;
+      
+      // 選択された犯罪リストを表示
+      const selectedCrimesElement = document.getElementById('selectedCrimes');
+      const selectedCrimeListElement = document.getElementById('selectedCrimeList');
+      
+      selectedCrimeListElement.innerHTML = '';
+      
+      if (selectedCrimesList.length > 0) {
+        selectedCrimesElement.style.display = 'block';
+        
+        selectedCrimesList.forEach(crime => {
+          const listItem = document.createElement('li');
+          listItem.textContent = `${crime.name}: ${formatCurrency(crime.fine)}${crime.sentence > 0 ? ` (刑期: ${crime.sentence}分)` : ''}`;
+          selectedCrimeListElement.appendChild(listItem);
+        });
+      } else {
+        selectedCrimesElement.style.display = 'none';
+      }
+    }
+
+    // 金額のフォーマット
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 }).format(amount);
+    }
+
+    // クリア処理
+    function clearAll() {
+      const checkboxes = document.querySelectorAll('.crime-checkbox');
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      
+      const drugAmountInput = document.getElementById('drug-amount');
+      if (drugAmountInput) {
+        drugAmountInput.value = '0';
+      }
+      
+      document.getElementById('totalFine').textContent = '0円';
+      document.getElementById('maxSentence').textContent = '0分';
+      document.getElementById('selectedCrimes').style.display = 'none';
+    }
+
+    // 初期化
+    document.addEventListener('DOMContentLoaded', () => {
+      displayCrimes();
+      
+      // チェックボックスの変更を監視
+      document.getElementById('crimeList').addEventListener('change', (event) => {
+        if (event.target.classList.contains('crime-checkbox')) {
+          calculate();
+        }
+      });
+      
+      document.getElementById('clearBtn').addEventListener('click', clearAll);
+    });
+  </script>
+</body>
+</html>
